@@ -95,7 +95,11 @@ tbody tr:hover .edit-btn{opacity:1}
 .back-btn{background:var(--bg3);border:none;color:var(--mid);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}
 .back-btn:hover{color:var(--text);background:var(--bg4)}
 .proj-h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
-.proj-sub{color:var(--dim);font-size:13px;margin-bottom:22px}
+.proj-sub{color:var(--dim);font-size:13px;margin-bottom:16px}
+.proj-desc{width:100%;background:none;border:none;border-bottom:1px solid transparent;color:var(--mid);font-size:14px;font-family:inherit;line-height:1.7;resize:none;outline:none;padding:8px 0;margin-bottom:20px;transition:border-color .2s,color .2s;overflow:hidden;min-height:32px}
+.proj-desc:hover{border-bottom-color:var(--border)}
+.proj-desc:focus{border-bottom-color:var(--accent);color:var(--text)}
+.proj-desc::placeholder{color:var(--dim)}
 
 /* PROGRESS CARD */
 .prog-card{display:flex;align-items:center;gap:16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:24px}
@@ -193,6 +197,7 @@ tbody tr:hover .edit-btn{opacity:1}
     <h1 class="proj-h1" id="pv-title"></h1>
   </div>
   <div class="proj-sub" id="pv-meta"></div>
+  <textarea class="proj-desc" id="pv-desc" rows="1" placeholder="Add a description — goals, what's important, context..." oninput="saveDesc(this)"></textarea>
   <div class="prog-card">
     <div class="prog-card-pct" id="pv-pct">—</div>
     <div class="prog-card-bar"><div class="prog-card-fill" id="pv-fill" style="width:0%"></div></div>
@@ -464,6 +469,9 @@ function renderProject(){
   if(p.deadline&&days!==null)meta+=days<0?'  ·  Overdue':days===0?'  ·  Due today':`  ·  ${days} days left`;
   document.getElementById('pv-title').textContent=`${p.emoji} ${p.name}`;
   document.getElementById('pv-meta').textContent=meta;
+  const ta=document.getElementById('pv-desc');
+  ta.value=p.description||'';
+  autoResize(ta);
   refreshProg(p);renderTasks(p);
 }
 
@@ -626,6 +634,19 @@ function renderCal(){
     }
     body.appendChild(week);
   }
+}
+
+function saveDesc(ta){
+  const p=S.projects.find(x=>x.id===currentPid);
+  if(!p)return;
+  p.description=ta.value;
+  save();
+  autoResize(ta);
+}
+
+function autoResize(ta){
+  ta.style.height='auto';
+  ta.style.height=ta.scrollHeight+'px';
 }
 
 // ── PROJECT MODAL ─────────────────────────────────────────────────────────
