@@ -64,6 +64,31 @@ tbody tr:hover td{background:var(--bg2)}
 .proj-link:hover{color:var(--accent)}
 .days-urgent{color:var(--red);font-weight:600}
 .deadline-col{color:var(--blue)}
+.edit-btn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:5px;opacity:0;transition:all .15s;font-family:inherit;white-space:nowrap}
+tbody tr:hover .edit-btn{opacity:1}
+.edit-btn:hover{background:var(--bg3);color:var(--mid)}
+
+/* PROJECT MODAL */
+.modal-back{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center}
+.modal-back.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:calc(100vw - 32px);box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-ttl{font-size:16px;font-weight:700;letter-spacing:-.02em}
+.modal-x{background:var(--bg3);border:none;color:var(--dim);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.modal-x:hover{background:var(--bg4);color:var(--text)}
+.modal-field{margin-bottom:18px}
+.modal-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:7px}
+.modal-inp{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-size:14px;width:100%;font-family:inherit;transition:border-color .15s}
+.modal-inp:focus{outline:none;border-color:var(--accent)}
+.emoji-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.emoji-preview{font-size:28px;width:48px;height:48px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.emoji-opt{background:var(--bg3);border:1px solid transparent;border-radius:6px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;transition:all .15s;user-select:none}
+.emoji-opt:hover{border-color:var(--border);background:var(--bg4)}
+.emoji-opt.sel{border-color:var(--accent);background:var(--accent-dim)}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.del-proj-btn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:7px 12px;border-radius:6px;transition:all .15s;font-family:inherit}
+.del-proj-btn:hover{background:var(--red-dim);color:var(--red)}
 
 /* PROJECT VIEW */
 .back-row{display:flex;align-items:center;gap:14px;margin-bottom:16px}
@@ -207,6 +232,39 @@ tbody tr:hover td{background:var(--bg2)}
       <div class="cal-day-lbl">Sat</div>
     </div>
     <div id="cal-body"></div>
+  </div>
+</div>
+
+<!-- PROJECT EDIT MODAL -->
+<div class="modal-back" id="proj-modal-back" onclick="if(event.target===this)closeProjModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-ttl">Edit Project</div>
+      <button class="modal-x" onclick="closeProjModal()">✕</button>
+    </div>
+    <div class="modal-field">
+      <div class="modal-lbl">Emoji</div>
+      <div class="emoji-row">
+        <div class="emoji-preview" id="m-emoji-preview">📌</div>
+        <input type="text" class="modal-inp" id="m-emoji-inp" maxlength="4" placeholder="Paste emoji..." oninput="onEmojiInput()" style="width:140px">
+      </div>
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+    <div class="modal-field">
+      <div class="modal-lbl">Project Name</div>
+      <input type="text" class="modal-inp" id="m-name" placeholder="Project name..." oninput="syncProjModal()">
+    </div>
+    <div class="modal-field">
+      <div class="modal-lbl">Deadline</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="date" class="modal-inp" id="m-deadline" onchange="syncProjModal()" style="width:auto;flex:1">
+        <button class="btn btn-ghost" onclick="clearDeadline()" style="white-space:nowrap">Clear</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="del-proj-btn" onclick="deleteProj()">🗑 Delete project</button>
+      <button class="btn btn-primary" onclick="closeProjModal()">Done</button>
+    </div>
   </div>
 </div>
 
@@ -373,7 +431,12 @@ function renderWR(){
       ?`<span class="deadline-col">${fmtDate(p.deadline)}</span>`
       :`<span style="color:var(--dim)">—</span>`;
     return`<tr>
-      <td><button class="proj-link" onclick="showView('project','${p.id}')"><span>${p.emoji}</span><span>${esc(p.name)}</span></button></td>
+      <td>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <button class="proj-link" onclick="showView('project','${p.id}')"><span>${p.emoji}</span><span>${esc(p.name)}</span></button>
+          <button class="edit-btn" onclick="openProjModal('${p.id}')">✎ Edit</button>
+        </div>
+      </td>
       <td>${progCell}</td>
       <td><span class="dot ${cls}"></span></td>
       <td>${daysCell}</td>
@@ -563,6 +626,65 @@ function renderCal(){
     }
     body.appendChild(week);
   }
+}
+
+// ── PROJECT MODAL ─────────────────────────────────────────────────────────
+const EMOJIS=['🌍','🎤','📚','✏️','🎮','👤','💰','📌','🎯','🚀','💡','🔥','⭐','🎨','📋','🧩','🏆','💼','🎬','🎵','🌟','💎','⚡','🏠','🎃','🔑','🛡️','🎭','🌈','🦁','🐉','🏋️','🎪','🤖','🧠','🌊','🎲','🍀','🎖️','📡'];
+let editPid=null;
+
+function openProjModal(pid){
+  editPid=pid;
+  const p=S.projects.find(x=>x.id===pid);
+  if(!p)return;
+  document.getElementById('m-emoji-inp').value=p.emoji;
+  document.getElementById('m-emoji-preview').textContent=p.emoji;
+  document.getElementById('m-name').value=p.name;
+  document.getElementById('m-deadline').value=p.deadline||'';
+  const grid=document.getElementById('emoji-grid');
+  grid.innerHTML=EMOJIS.map(e=>`<div class="emoji-opt${p.emoji===e?' sel':''}" onclick="pickEmoji('${e}')">${e}</div>`).join('');
+  document.getElementById('proj-modal-back').classList.add('open');
+}
+
+function closeProjModal(){
+  editPid=null;
+  document.getElementById('proj-modal-back').classList.remove('open');
+}
+
+function pickEmoji(e){
+  document.getElementById('m-emoji-inp').value=e;
+  document.getElementById('m-emoji-preview').textContent=e;
+  document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.toggle('sel',el.textContent===e));
+  syncProjModal();
+}
+
+function onEmojiInput(){
+  const v=document.getElementById('m-emoji-inp').value.trim();
+  if(v)document.getElementById('m-emoji-preview').textContent=v;
+  syncProjModal();
+}
+
+function clearDeadline(){
+  document.getElementById('m-deadline').value='';
+  syncProjModal();
+}
+
+function syncProjModal(){
+  if(!editPid)return;
+  const p=S.projects.find(x=>x.id===editPid);
+  if(!p)return;
+  const name=document.getElementById('m-name').value.trim();
+  const emoji=document.getElementById('m-emoji-inp').value.trim();
+  const dl=document.getElementById('m-deadline').value;
+  if(name)p.name=name;
+  if(emoji)p.emoji=emoji;
+  p.deadline=dl||null;
+  save();renderWR();
+}
+
+function deleteProj(){
+  if(!editPid||!confirm('Delete this project and all its tasks? This cannot be undone.'))return;
+  S.projects=S.projects.filter(x=>x.id!==editPid);
+  save();closeProjModal();renderWR();
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
