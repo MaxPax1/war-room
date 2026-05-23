@@ -162,6 +162,13 @@ tbody tr:hover .edit-btn{opacity:1}
 .panel-done-lbl{font-size:14px;color:var(--mid);cursor:pointer;user-select:none}
 .del-task-btn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:8px 12px;border-radius:5px;transition:all .15s;margin-top:auto;font-family:inherit;text-align:left;width:100%}
 .del-task-btn:hover{background:var(--red-dim);color:var(--red)}
+
+/* DRAG */
+.drag-handle{color:var(--dim);cursor:grab;font-size:15px;opacity:0;transition:opacity .12s;user-select:none;display:block;padding:0 2px;line-height:1}
+tr:hover .drag-handle{opacity:1}
+.drag-handle:active{cursor:grabbing}
+tr.drag-over td{background:var(--accent-dim)!important;box-shadow:inset 0 2px 0 var(--accent)}
+tr.dragging{opacity:.3}
 </style>
 </head>
 <body>
@@ -180,6 +187,7 @@ tbody tr:hover .edit-btn{opacity:1}
   </div>
   <table>
     <thead><tr>
+      <th style="width:24px"></th>
       <th style="width:40%">Project</th>
       <th style="width:20%">Progress</th>
       <th style="width:8%">Status</th>
@@ -205,6 +213,7 @@ tbody tr:hover .edit-btn{opacity:1}
   </div>
   <table>
     <thead><tr>
+      <th style="width:24px"></th>
       <th style="width:58%">Task</th>
       <th style="width:16%">Weight</th>
       <th style="width:10%">Done</th>
@@ -411,13 +420,7 @@ function showView(name,pid){
 
 // ── WAR ROOM ──────────────────────────────────────────────────────────────
 function renderWR(){
-  const sorted=[...S.projects].sort((a,b)=>{
-    if(!a.deadline&&!b.deadline)return 0;
-    if(!a.deadline)return 1;
-    if(!b.deadline)return-1;
-    return a.deadline.localeCompare(b.deadline);
-  });
-  document.getElementById('wr-tbody').innerHTML=sorted.map(p=>{
+  document.getElementById('wr-tbody').innerHTML=S.projects.map(p=>{
     const pct=calcProg(p),days=daysLeft(p.deadline);
     const{cls,hex}=pColor(pct);
     const progCell=pct===null
@@ -435,7 +438,12 @@ function renderWR(){
     const dlCell=p.deadline
       ?`<span class="deadline-col">${fmtDate(p.deadline)}</span>`
       :`<span style="color:var(--dim)">—</span>`;
-    return`<tr>
+    return`<tr draggable="true" data-pid="${p.id}"
+        ondragstart="projDragStart(event,'${p.id}')"
+        ondragover="projDragOver(event,'${p.id}')"
+        ondrop="projDrop(event,'${p.id}')"
+        ondragend="projDragEnd()">
+      <td style="padding:0 8px;width:24px"><span class="drag-handle">⠿</span></td>
       <td>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <button class="proj-link" onclick="showView('project','${p.id}')"><span>${p.emoji}</span><span>${esc(p.name)}</span></button>
@@ -492,7 +500,12 @@ function renderTasks(p){
   }
   tb.innerHTML=p.tasks.map(t=>{
     const opts=[1,2,3,4,5].map(w=>`<option value="${w}"${t.weight===w?' selected':''}>${w}</option>`).join('');
-    return`<tr id="tr-${t.id}">
+    return`<tr id="tr-${t.id}" draggable="true"
+        ondragstart="taskDragStart(event,'${t.id}')"
+        ondragover="taskDragOver(event,'${t.id}')"
+        ondrop="taskDrop(event,'${t.id}')"
+        ondragend="taskDragEnd()">
+      <td style="padding:0 8px;width:24px"><span class="drag-handle">⠿</span></td>
       <td><button class="task-btn${t.done?' done':''}" onclick="openPanel('${t.id}')">${esc(t.name||'Untitled')}</button></td>
       <td><select class="weight-sel" onchange="setWeight('${t.id}',this.value)">${opts}</select></td>
       <td><input type="checkbox" class="task-cb"${t.done?' checked':''} onchange="setDone('${t.id}',this.checked)"></td>
@@ -634,6 +647,62 @@ function renderCal(){
     }
     body.appendChild(week);
   }
+}
+
+// ── DRAG: PROJECTS ────────────────────────────────────────────────────────
+let dragPid=null;
+function projDragStart(e,pid){
+  dragPid=pid;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>e.target.closest('tr').classList.add('dragging'),0);
+}
+function projDragOver(e,pid){
+  if(pid===dragPid)return;
+  e.preventDefault();
+  document.querySelectorAll('#wr-tbody tr').forEach(r=>r.classList.remove('drag-over'));
+  e.target.closest('tr').classList.add('drag-over');
+}
+function projDrop(e,pid){
+  e.preventDefault();
+  if(!dragPid||pid===dragPid)return;
+  const from=S.projects.findIndex(x=>x.id===dragPid);
+  const to=S.projects.findIndex(x=>x.id===pid);
+  const[item]=S.projects.splice(from,1);
+  S.projects.splice(to,0,item);
+  save();renderWR();
+}
+function projDragEnd(){
+  document.querySelectorAll('#wr-tbody tr').forEach(r=>r.classList.remove('drag-over','dragging'));
+  dragPid=null;
+}
+
+// ── DRAG: TASKS ───────────────────────────────────────────────────────────
+let dragTid=null;
+function taskDragStart(e,tid){
+  dragTid=tid;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>document.getElementById('tr-'+tid)?.classList.add('dragging'),0);
+}
+function taskDragOver(e,tid){
+  if(tid===dragTid)return;
+  e.preventDefault();
+  document.querySelectorAll('#pv-tbody tr').forEach(r=>r.classList.remove('drag-over'));
+  e.target.closest('tr').classList.add('drag-over');
+}
+function taskDrop(e,tid){
+  e.preventDefault();
+  if(!dragTid||tid===dragTid)return;
+  const p=S.projects.find(x=>x.id===currentPid);
+  if(!p)return;
+  const from=p.tasks.findIndex(x=>x.id===dragTid);
+  const to=p.tasks.findIndex(x=>x.id===tid);
+  const[item]=p.tasks.splice(from,1);
+  p.tasks.splice(to,0,item);
+  save();renderTasks(p);
+}
+function taskDragEnd(){
+  document.querySelectorAll('#pv-tbody tr').forEach(r=>r.classList.remove('drag-over','dragging'));
+  dragTid=null;
 }
 
 function saveDesc(ta){
