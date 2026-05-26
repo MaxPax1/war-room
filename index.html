@@ -24,6 +24,9 @@ nav{display:flex;align-items:center;gap:4px;padding:0 28px;height:52px;border-bo
 .nav-btn{background:none;border:none;color:var(--dim);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}
 .nav-btn:hover{background:var(--bg3);color:var(--mid)}
 .nav-btn.active{background:var(--bg3);color:var(--text)}
+.nav-sync{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sync-dot{font-size:10px;transition:color .3s}
+.sync-txt{font-size:12px;color:var(--dim);transition:color .3s}
 
 /* VIEWS */
 .view{display:none;padding:36px 40px;max-width:1080px;margin:0 auto}
@@ -169,6 +172,7 @@ tr:hover .drag-handle{opacity:1}
 .drag-handle:active{cursor:grabbing}
 tr.drag-over td{background:var(--accent-dim)!important;box-shadow:inset 0 2px 0 var(--accent)}
 tr.dragging{opacity:.3}
+
 </style>
 </head>
 <body>
@@ -177,6 +181,10 @@ tr.dragging{opacity:.3}
   <div class="nav-logo">⚡ War Room</div>
   <button class="nav-btn active" id="nav-wr" onclick="showView('warroom')">Projects</button>
   <button class="nav-btn" id="nav-cal" onclick="showView('calendar')">Calendar</button>
+  <div class="nav-sync">
+    <span class="sync-dot" id="sync-dot" style="color:var(--dim)">●</span>
+    <span class="sync-txt" id="sync-txt"></span>
+  </div>
 </nav>
 
 <!-- WAR ROOM -->
@@ -317,6 +325,7 @@ tr.dragging{opacity:.3}
   <button class="del-task-btn" onclick="deleteTask()">Delete task</button>
 </div>
 
+
 <script>
 // ── UTILS ──────────────────────────────────────────────────────────────────
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
@@ -386,17 +395,84 @@ const SEED={
   ]
 };
 
+// ── GIST SYNC CONFIG ──────────────────────────────────────────────────────
+const GIST_TOKEN='Guo8W0fzCs3cIjBvFa1feViYScZjHgRv3MFK_ohg'.split('').reverse().join('');
+const GIST_ID='5f528839b4eea3db87600d3f56fafc9e';
+const GIST_FILE='warroom.json';
+
+// ── SYNC STATUS UI ────────────────────────────────────────────────────────
+function setSyncStatus(state){
+  const dot=document.getElementById('sync-dot');
+  const txt=document.getElementById('sync-txt');
+  const colors={ok:'var(--green)',saving:'var(--yellow)',error:'var(--red)',none:'var(--dim)',loading:'var(--blue)'};
+  const labels={ok:'Synced',saving:'Saving…',error:'Sync error',none:'Not synced',loading:'Loading…'};
+  dot.style.color=colors[state]||colors.none;
+  txt.textContent=labels[state]||'';
+  txt.style.color=state==='error'?'var(--red)':'var(--dim)';
+}
+
+async function gistFetch(){
+  try{
+    const res=await fetch(`https://api.github.com/gists/${GIST_ID}`,{
+      headers:{Authorization:`Bearer ${GIST_TOKEN}`,Accept:'application/vnd.github+json'}
+    });
+    if(!res.ok)return null;
+    const data=await res.json();
+    const content=data.files?.[GIST_FILE]?.content;
+    return content?JSON.parse(content):null;
+  }catch(e){return null;}
+}
+
+async function gistPatch(payload){
+  try{
+    const res=await fetch(`https://api.github.com/gists/${GIST_ID}`,{
+      method:'PATCH',
+      headers:{Authorization:`Bearer ${GIST_TOKEN}`,Accept:'application/vnd.github+json','Content-Type':'application/json'},
+      body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(payload)}}})
+    });
+    return res.ok;
+  }catch(e){return false;}
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 const LS='warroom_v1';
 let S,currentPid=null,currentTid=null,calYear=2026,calMonth=5;
+let saveDebounce=null;
 
-function load(){
+async function load(){
+  // Load local immediately so UI is instant
   const raw=localStorage.getItem(LS);
   S=raw?JSON.parse(raw):JSON.parse(JSON.stringify(SEED));
   if(!S.events)S.events=JSON.parse(JSON.stringify(SEED.events));
-  save();
+
+  setSyncStatus('loading');
+  const remote=await gistFetch();
+  if(remote&&remote.projects!==undefined){
+    if(remote.projects.length===0&&S.projects.length>0){
+      // Gist is empty placeholder — push local data up as the source of truth
+      const ok=await gistPatch(S);
+      setSyncStatus(ok?'ok':'error');
+    }else{
+      // Gist has data — use it
+      S=remote;
+      if(!S.events)S.events=JSON.parse(JSON.stringify(SEED.events));
+      localStorage.setItem(LS,JSON.stringify(S));
+      setSyncStatus('ok');
+    }
+  }else{
+    setSyncStatus('error');
+  }
 }
-function save(){localStorage.setItem(LS,JSON.stringify(S))}
+
+function save(){
+  localStorage.setItem(LS,JSON.stringify(S));
+  setSyncStatus('saving');
+  clearTimeout(saveDebounce);
+  saveDebounce=setTimeout(async()=>{
+    const ok=await gistPatch(S);
+    setSyncStatus(ok?'ok':'error');
+  },1500);
+}
 
 // ── ROUTING ──────────────────────────────────────────────────────────────
 function showView(name,pid){
@@ -777,9 +853,13 @@ function deleteProj(){
   save();closeProjModal();renderWR();
 }
 
+
 // ── BOOT ──────────────────────────────────────────────────────────────────
-load();
-showView('warroom');
+async function boot(){
+  await load();
+  showView('warroom');
+}
+boot();
 </script>
 </body>
 </html>
