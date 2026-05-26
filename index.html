@@ -173,6 +173,52 @@ tr:hover .drag-handle{opacity:1}
 tr.drag-over td{background:var(--accent-dim)!important;box-shadow:inset 0 2px 0 var(--accent)}
 tr.dragging{opacity:.3}
 
+/* MOBILE */
+@media(max-width:640px){
+  nav{padding:0 12px;height:48px;gap:2px}
+  .nav-logo{font-size:13px;margin-right:6px}
+  .nav-btn{padding:5px 8px;font-size:12px}
+  .sync-txt{display:none}
+
+  .view{padding:18px 14px}
+  .page-hdr{margin-bottom:14px}
+  .page-title{font-size:17px}
+  .btn{padding:6px 11px;font-size:12px}
+
+  /* Projects table: keep name + days left, hide the rest */
+  #view-warroom thead th:nth-child(1),#view-warroom tbody td:nth-child(1),
+  #view-warroom thead th:nth-child(3),#view-warroom tbody td:nth-child(3),
+  #view-warroom thead th:nth-child(4),#view-warroom tbody td:nth-child(4),
+  #view-warroom thead th:nth-child(6),#view-warroom tbody td:nth-child(6){display:none}
+
+  /* Always show edit button on touch (no hover) */
+  .edit-btn{opacity:1;font-size:11px;padding:3px 6px}
+
+  /* Task table: keep name + done, hide drag handle + weight */
+  #view-project thead th:nth-child(1),#view-project tbody td:nth-child(1),
+  #view-project thead th:nth-child(3),#view-project tbody td:nth-child(3){display:none}
+
+  /* Project view */
+  .proj-h1{font-size:18px}
+  .back-row{gap:8px;margin-bottom:12px}
+  .prog-card{padding:11px 14px;gap:10px}
+  .prog-card-pct{font-size:20px;min-width:44px}
+
+  /* Task panel — full width slide-in */
+  .task-panel{width:100%;right:-100%}
+  .task-panel.open{right:0}
+  .panel-textarea{min-height:100px}
+
+  /* Calendar */
+  .cal-hdr{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:16px}
+  .cal-legend{display:none}
+  .cal-month-lbl{font-size:14px;min-width:130px}
+  .cal-cell{min-height:56px;padding:4px}
+  .cal-date{font-size:11px;width:20px;height:20px}
+  .cal-evt{font-size:9px;padding:1px 3px}
+  .cal-day-lbl{font-size:9px;padding:6px 2px}
+}
+
 </style>
 </head>
 <body>
